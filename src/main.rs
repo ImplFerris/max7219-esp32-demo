@@ -7,7 +7,15 @@
 )]
 
 use defmt::info;
+use embedded_graphics::mono_font::ascii::FONT_5X8;
+use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::pixelcolor::BinaryColor;
+use embedded_graphics::prelude::*;
+use embedded_graphics::prelude::{Point, Primitive, Size};
+use embedded_graphics::primitives::{Circle, PrimitiveStyleBuilder, Rectangle};
+use embedded_graphics::text::{Text, TextStyleBuilder};
 use esp_hal::clock::CpuClock;
+use esp_hal::delay::Delay;
 use esp_hal::main;
 use esp_hal::time::{Duration, Instant};
 use esp_println as _;
@@ -18,7 +26,8 @@ use esp_hal::spi::master::Config as SpiConfig;
 use esp_hal::spi::master::Spi;
 use esp_hal::spi::Mode as SpiMode;
 use esp_hal::time::Rate;
-use max7219_driver_project::driver::Max7219;
+use max7219_eg::driver::Max7219;
+use max7219_eg::led_matrix::LedMatrix;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -53,26 +62,48 @@ fn main() -> ! {
 
     let mut driver = Max7219::new(spi_dev);
     driver.init().unwrap();
+    let mut display: LedMatrix<_> = LedMatrix::from_driver(driver).expect("valid device count");
 
-    let device_index = 0;
+    let delay = Delay::new();
 
-    // Inner hollow square:
-    let inner_hollow_square: [u8; 8] = [
-        0b00000000, // row 0 - all LEDs off
-        0b01111110, // row 1 - columns 1 to 6 ON (bits 6 to 1 = 1)
-        0b01000010, // row 2 - columns 6 and 1 ON (edges)
-        0b01000010, // row 3 - columns 6 and 1 ON
-        0b01000010, // row 4 - columns 6 and 1 ON
-        0b01000010, // row 5 - columns 6 and 1 ON
-        0b01111110, // row 6 - columns 1 to 6 ON (bits 6 to 1 = 1)
-        0b00000000, // row 7 - all LEDs off
-    ];
+    // --- Draw Square ---
+    let square = PrimitiveStyleBuilder::new()
+        .stroke_color(BinaryColor::On) // Only draw the border
+        .stroke_width(1) // Border thickness of 1 pixel
+        .build();
+    let rect = Rectangle::new(Point::new(1, 1), Size::new(6, 6)).into_styled(square);
+    rect.draw(&mut display).unwrap();
+    display.flush().unwrap();
 
-    for digit in 0..8 {
-        driver
-            .write_raw_digit(device_index, digit, inner_hollow_square[digit as usize])
-            .unwrap();
-    }
+    delay.delay_millis(1000);
+
+    // Uncomment to Clear the screen and buffer
+    // Without this, it will draw the circle inside the previous square
+    // display.clear_screen().unwrap();
+
+    // --- Draw Circle ---
+    let hollow_circle_style = PrimitiveStyleBuilder::new()
+        .stroke_color(BinaryColor::On)
+        .stroke_width(1)
+        .build();
+    let circle = Circle::new(Point::new(2, 2), 4).into_styled(hollow_circle_style);
+    circle.draw(&mut display).unwrap();
+    display.flush().unwrap();
+
+    delay.delay_millis(1000);
+
+    // Just clear the buffer. it wont send request to the devices until the flush.
+    display.clear_buffer();
+
+    //  Write Text (in single device, just a character)
+    let text_style = TextStyleBuilder::new()
+        .alignment(embedded_graphics::text::Alignment::Center)
+        .baseline(embedded_graphics::text::Baseline::Top)
+        .build();
+    let character_style = MonoTextStyle::new(&FONT_5X8, BinaryColor::On);
+    let text = Text::with_text_style("R", Point::new(4, 0), character_style, text_style);
+    text.draw(&mut display).unwrap();
+    display.flush().unwrap();
 
     loop {
         info!("Hello world!");

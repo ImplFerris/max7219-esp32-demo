@@ -1,10 +1,10 @@
 [package]
 edition = "2021"
-name = "max7219-esp32-demo"
+name = "max7219-esp32-eg"
 version = "0.1.0"
 
 [[bin]]
-name = "max7219-esp32-demo"
+name = "max7219-esp32-eg"
 path = "./src/main.rs"
 
 [dependencies]
@@ -23,8 +23,8 @@ embedded-hal-bus = "0.3.0"
 # Full Crate
 # max7219-display = { git = "https://github.com/ImplFerris/max7219-display", features = [] }
 # Bare driver for the Red book:
-max7219-driver-project = { git = "https://github.com/ImplFerris/max7219-driver-project" }
-
+max7219-eg = { git = "https://github.com/ImplFerris/max7219-eg" }
+embedded-graphics = "0.8.1"
 
 [profile.dev]
 # Rust debug is too slow.
